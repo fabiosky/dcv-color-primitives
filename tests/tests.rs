@@ -22,16 +22,20 @@ use rand::Rng;
 
 const MAX_NUMBER_OF_PLANES: u32 = 3;
 
-const PIXEL_FORMATS: &[PixelFormat; 9] = &[
+const PIXEL_FORMATS: &[PixelFormat; 13] = &[
     PixelFormat::Argb,
     PixelFormat::Bgra,
     PixelFormat::Bgr,
     PixelFormat::Rgba,
     PixelFormat::Rgb,
+    PixelFormat::Bgra30,
+    PixelFormat::Rgba30,
     PixelFormat::I444,
     PixelFormat::I422,
     PixelFormat::I420,
     PixelFormat::Nv12,
+    PixelFormat::P410,
+    PixelFormat::P010,
 ];
 
 const COLOR_SPACES: &[ColorSpace; 3] = &[ColorSpace::Lrgb, ColorSpace::Bt601, ColorSpace::Bt709];
@@ -39,6 +43,7 @@ const COLOR_SPACES: &[ColorSpace; 3] = &[ColorSpace::Lrgb, ColorSpace::Bt601, Co
 const PIXEL_FORMAT_I444: u32 = PixelFormat::I444 as u32;
 const PIXEL_FORMAT_I422: u32 = PixelFormat::I422 as u32;
 const PIXEL_FORMAT_I420: u32 = PixelFormat::I420 as u32;
+const PIXEL_FORMAT_P410: u32 = PixelFormat::P410 as u32;
 const COLOR_SPACE_LRGB: u32 = ColorSpace::Lrgb as u32;
 const PIXEL_FORMAT_ARGB: u32 = PixelFormat::Argb as u32;
 const PIXEL_FORMAT_BGRA: u32 = PixelFormat::Bgra as u32;
@@ -264,28 +269,36 @@ const CR_TO_RGB_INPUT: [[u8; 8]; 2] = [
     [128, 240, 26, 138, 118, 230, 16, 128],
 ];
 
-const NUM_LOG2_DEN: [[usize; 2]; 9] = [
+const NUM_LOG2_DEN: [[usize; 2]; 13] = [
     [4, 0],
     [4, 0],
     [3, 0],
     [4, 0],
     [3, 0],
+    [4, 0],
+    [4, 0],
     [3, 0],
     [2, 0],
     [3, 1],
     [3, 1],
+    [6, 0],
+    [3, 0],
 ];
 
-const NUM_LOG2_DEN_PER_PLANE: [[usize; (2 * MAX_NUMBER_OF_PLANES) as usize]; 9] = [
+const NUM_LOG2_DEN_PER_PLANE: [[usize; (2 * MAX_NUMBER_OF_PLANES) as usize]; 13] = [
     [4, 0, 0, 0, 0, 0],
     [4, 0, 0, 0, 0, 0],
     [3, 0, 0, 0, 0, 0],
     [4, 0, 0, 0, 0, 0],
     [3, 0, 0, 0, 0, 0],
+    [4, 0, 0, 0, 0, 0],
+    [4, 0, 0, 0, 0, 0],
     [1, 0, 1, 0, 1, 0],
     [1, 0, 1, 1, 1, 1],
     [1, 0, 1, 2, 1, 2],
     [1, 0, 1, 1, 0, 0],
+    [2, 0, 2, 0, 2, 0],
+    [2, 0, 2, 2, 2, 2],
 ];
 
 macro_rules! set_expected {
@@ -1327,7 +1340,7 @@ fn buffers_size() {
             // Invalid width
             let mut expected: Result<(), ErrorKind> = Ok(());
 
-            set_expected!(expected, pf >= PIXEL_FORMAT_I422, ErrorKind::InvalidValue);
+            set_expected!(expected, pf >= PIXEL_FORMAT_I422 && pf != PIXEL_FORMAT_P410, ErrorKind::InvalidValue);
             set_expected!(
                 expected,
                 num_planes != 1 && num_planes != max_number_of_planes,
@@ -1343,7 +1356,7 @@ fn buffers_size() {
             // Invalid height
             let mut expected: Result<(), ErrorKind> = Ok(());
 
-            set_expected!(expected, pf >= PIXEL_FORMAT_I420, ErrorKind::InvalidValue);
+            set_expected!(expected, pf >= PIXEL_FORMAT_I420 && pf != PIXEL_FORMAT_P410, ErrorKind::InvalidValue);
             set_expected!(
                 expected,
                 num_planes != 1 && num_planes != max_number_of_planes,
@@ -1614,3 +1627,122 @@ fn lrgb_conversion_ok(
         }
     }
 }
+
+/*
+use dav1d::PlanarImageComponent;
+use mp4parse::read_avif;
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::Write;
+use std::mem;
+
+#[test]
+fn import_avif() {
+    bootstrap();
+
+    // Test bgra
+    let mut buffer = Vec::new();
+    let input = &mut File::open("./tests/input.bgra").expect("Unknown file");
+    input.read_to_end(&mut buffer).expect("read_to_end failed");
+
+    for val in buffer.chunks_exact(4) {
+        let bt = [val[0], val[1], val[2], val[3]];
+
+        #[allow(unsafe_code)]
+        unsafe {
+            let i = mem::transmute::<[u8; 4], u32>(bt);
+
+            assert_eq!(i & 0xFF, 1); // b
+            assert_eq!((i >> 8) & 0xFF, 2); // g
+            assert_eq!((i >> 16) & 0xFF, 3); // r
+            assert_eq!(i >> 24, 0xFF); // a
+        }
+    }
+
+    // test 10-bit avif yuv
+    let input = &mut File::open("./tests/fox_10.avif").expect("Unknown file");
+    let ctx = read_avif(input).expect("read_avif failed");
+
+    let mut primary_decoder = dav1d::Decoder::new();
+    primary_decoder
+        .send_data(ctx.primary_item(), None, None, None)
+        .expect("send_data failed");
+
+    let picture = primary_decoder.get_picture().expect("get_picture failed");
+    let width = picture.width() as usize;
+    let height = picture.height() as usize;
+
+    println!("bit depth: {}", picture.bit_depth());
+    println!("pixel layout: {:?}", picture.pixel_layout());
+    println!("size: {}x{}", width, height);
+
+    for val in picture.plane(PlanarImageComponent::Y).as_ref().chunks_exact(2) {
+        // 000000bb aaaaaaaa
+        // f<--------------0
+        let a = val[0];
+        let b = val[1];
+        assert_eq!(b >> 2, 0);
+
+        let bt = [a, b];
+
+        // 16-bit representation:
+        // 000000hh llllllll
+        #[allow(unsafe_code)]
+        unsafe {
+            let i = mem::transmute::<[u8; 2], u16>(bt);
+            assert_eq!(i >> 10, 0);
+        }
+    }
+
+    let src_format = ImageFormat {
+        pixel_format: PixelFormat::I420,
+        color_space: ColorSpace::Bt601,
+        num_planes: 3,
+    };
+
+    let dst_format = ImageFormat {
+        pixel_format: PixelFormat::Bgra,
+        color_space: ColorSpace::Lrgb,
+        num_planes: 1,
+    };
+
+    let planes = &[
+        picture.plane(PlanarImageComponent::Y),
+        picture.plane(PlanarImageComponent::U),
+        picture.plane(PlanarImageComponent::V),
+    ];
+
+    let src_buffers = planes.iter().map(AsRef::as_ref).collect::<Vec<_>>();
+    let strides = &[
+        picture.stride(PlanarImageComponent::Y) as usize,
+        picture.stride(PlanarImageComponent::U) as usize,
+        picture.stride(PlanarImageComponent::V) as usize,
+    ];
+
+    let dst_size: usize = 4 * width * height;
+    let mut output_buffer: Vec<u8> = vec![0; dst_size];
+    let dst_buffers = &mut [&mut output_buffer[..]];
+
+    convert_image(
+        width as u32,
+        height as u32,
+        &src_format,
+        Some(strides),
+        &src_buffers,
+        &dst_format,
+        None,
+        dst_buffers,
+    )
+    .expect("convert_image failed");
+
+    let path = Path::new("./tests/out.ppm");
+    let mut file = File::create(&path).expect("create file failed");
+    let header = format!("P6 {} {} 255\n", width as u32, height as u32);
+    file.write(header.as_bytes()).expect("write failed");
+
+    for pixel in output_buffer.chunks_exact(4) {
+        let color = [pixel[2], pixel[1], pixel[0]];
+        file.write(&color).expect("write failed");
+    }
+}
+*/

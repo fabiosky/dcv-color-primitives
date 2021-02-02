@@ -11,6 +11,7 @@ DCV Color Primitives is a library to perform image color model conversion.
 * Aware of the underlying hardware and supplemental cpu extension sets (up to avx2)
 * Support data coming from a single buffer or coming from multiple image planes
 * Support non-tightly packed data
+* Support 8 and 10-bit color formats
 * Support images greater than 4GB (64 bit)
 * Support ARM (aarch64)[*]
 * Support WebAssembly[*]
@@ -29,6 +30,8 @@ The library is currenty able to convert the following pixel formats:
 | I420                 | BGRA                       |
 | I444                 | BGRA                       |
 | NV12                 | BGRA                       |
+| P010                 | BGRA, BGRA30, RGBA30       |
+| P410                 | BGRA, BGRA30, RGBA30       |
 | RGB                  | BGRA                       |
 
 ### Color models

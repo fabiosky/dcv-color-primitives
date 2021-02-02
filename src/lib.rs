@@ -32,6 +32,8 @@
 //! | I420                 | BGRA                       |
 //! | I444                 | BGRA                       |
 //! | NV12                 | BGRA                       |
+//! | P010                 | BGRA, BGRA30, RGBA30       |
+//! | P410                 | BGRA, BGRA30, RGBA30       |
 //! | RGB                  | BGRA                       |
 //!
 //! The supported color models are:
@@ -335,35 +337,47 @@ impl error::Error for ErrorKind {
 ///
 /// Each pixel format has one or more compatible color spaces:
 ///
-/// pixel_format      | color_space
-/// ------------------|--------------------------------------
-/// PixelFormat::Argb | ColorSpace::Lrgb
-/// PixelFormat::Bgra | ColorSpace::Lrgb
-/// PixelFormat::Bgr  | ColorSpace::Lrgb
-/// PixelFormat::Rgba | ColorSpace::Lrgb
-/// PixelFormat::Rgb  | ColorSpace::Lrgb
-/// PixelFormat::I444 | ColorSpace::Bt601, ColorSpace::Bt709
-/// PixelFormat::I422 | ColorSpace::Bt601, ColorSpace::Bt709
-/// PixelFormat::I420 | ColorSpace::Bt601, ColorSpace::Bt709
-/// PixelFormat::Nv12 | ColorSpace::Bt601, ColorSpace::Bt709
+/// pixel_format        | color_space
+/// --------------------|--------------------------------------
+/// PixelFormat::Argb   | ColorSpace::Lrgb
+/// PixelFormat::Bgra   | ColorSpace::Lrgb
+/// PixelFormat::Bgr    | ColorSpace::Lrgb
+/// PixelFormat::Rgba   | ColorSpace::Lrgb
+/// PixelFormat::Rgb    | ColorSpace::Lrgb
+/// PixelFormat::Bgra30 | ColorSpace::Lrgb
+/// PixelFormat::Rgba30 | ColorSpace::Lrgb
+/// PixelFormat::I444   | ColorSpace::Bt601, ColorSpace::Bt709
+/// PixelFormat::I422   | ColorSpace::Bt601, ColorSpace::Bt709
+/// PixelFormat::I420   | ColorSpace::Bt601, ColorSpace::Bt709
+/// PixelFormat::Nv12   | ColorSpace::Bt601, ColorSpace::Bt709
+/// PixelFormat::P410   | ColorSpace::Bt601, ColorSpace::Bt709
+/// PixelFormat::P010   | ColorSpace::Bt601, ColorSpace::Bt709
 ///
 /// Some pixel formats might impose additional restrictions on the accepted number of
 /// planes and the image size:
 ///
-/// pixel_format      | subsampling | w   | h   | #planes | #1     | #2     | #3
-/// ------------------|:-----------:|:---:|:---:|:-------:|:------:|:------:|:-------:
-/// PixelFormat::Argb | 4:4:4       |     |     | 1       | argb:4 |        |
-/// PixelFormat::Bgra | 4:4:4       |     |     | 1       | bgra:4 |        |
-/// PixelFormat::Bgr  | 4:4:4       |     |     | 1       | bgr:3  |        |
-/// PixelFormat::Rgba | 4:4:4       |     |     | 1       | rgba:4 |        |
-/// PixelFormat::Rgb  | 4:4:4       |     |     | 1       | rgb:3  |        |
-/// PixelFormat::I444 | 4:4:4       |     |     | 3       | y:1    | u:1    | v:1
-/// PixelFormat::I422 | 4:2:2       |  2  |     | 1, 3    | y:1    | u:1/2  | v:1/2
-/// PixelFormat::I420 | 4:2:0       |  2  |  2  | 3       | y:1    | u:1/4  | v:1/4
-/// PixelFormat::Nv12 | 4:2:0       |  2  |  2  | 1, 2    | y:1    | uv:1/2 |
+/// pixel_format        | w   | h   | subsampling | layout
+/// --------------------|:---:|:---:|:------------|:--------------
+/// PixelFormat::Argb   |     |     |             | packed
+/// PixelFormat::Bgra   |     |     |             | packed
+/// PixelFormat::Bgr    |     |     |             | packed
+/// PixelFormat::Rgba   |     |     |             | packed
+/// PixelFormat::Rgb    |     |     |             | packed
+/// PixelFormat::Bgra30 |     |     |             | packed
+/// PixelFormat::Rgba30 |     |     |             | packed
+/// PixelFormat::I444   |     |     | 4:4:4       | 3 planes
+/// PixelFormat::I422   |  2  |     | 4:2:2       | 1 or 3 planes
+/// PixelFormat::I420   |  2  |  2  | 4:2:0       | 3 planes
+/// PixelFormat::Nv12   |  2  |  2  | 4:2:0       | 1 or 2 planes
+/// PixelFormat::P410   |     |     | 4:4:4       | 3 planes
+/// PixelFormat::P010   |  2  |  2  | 4:2:0       | 3 planes
 ///
 /// The values reported in columns `w` and `h`, when specified, indicate that the described
-/// image should have width and height that are multiples of the specified values
+/// image should have width and height that are multiples of the specified values.
+///
+/// For information about packed formats and per-plane component layout, see [`pixel formats`].
+///
+/// [`pixel formats`]: ./enum.PixelFormat.html#variants
 #[repr(C)]
 pub struct ImageFormat {
     /// Pixel format
@@ -713,16 +727,22 @@ pub fn get_buffers_size(
 ///   PixelFormat::Argb             | PixelFormat::I420 [`1`]
 ///   PixelFormat::Argb             | PixelFormat::I444 [`1`]
 ///   PixelFormat::Argb             | PixelFormat::Nv12 [`1`]
+///   PixelFormat::Bgr              | PixelFormat::I420 [`1`]
+///   PixelFormat::Bgr              | PixelFormat::I444 [`1`]
+///   PixelFormat::Bgr              | PixelFormat::Nv12 [`1`]
 ///   PixelFormat::Bgra             | PixelFormat::I420 [`1`]
 ///   PixelFormat::Bgra             | PixelFormat::I444 [`1`]
 ///   PixelFormat::Bgra             | PixelFormat::Nv12 [`1`]
 ///   PixelFormat::Bgra             | PixelFormat::Rgb  [`4`]
-///   PixelFormat::Bgr              | PixelFormat::I420 [`1`]
-///   PixelFormat::Bgr              | PixelFormat::I444 [`1`]
-///   PixelFormat::Bgr              | PixelFormat::Nv12 [`1`]
 ///   PixelFormat::I420             | PixelFormat::Bgra [`2`]
 ///   PixelFormat::I444             | PixelFormat::Bgra [`2`]
 ///   PixelFormat::Nv12             | PixelFormat::Bgra [`2`]
+///   PixelFormat::P010             | PixelFormat::Bgra [`5`]
+///   PixelFormat::P010             | PixelFormat::Bgra30 [`5`]
+///   PixelFormat::P010             | PixelFormat::Rgba30 [`5`]
+///   PixelFormat::P410             | PixelFormat::Bgra [`5`]
+///   PixelFormat::P410             | PixelFormat::Bgra30 [`5`]
+///   PixelFormat::P410             | PixelFormat::Rgba30 [`5`]
 ///   PixelFormat::Rgb              | PixelFormat::Bgra [`3`]
 ///
 /// * [`NotEnoughData`] if the source stride array is not `None` and its length is less than the
@@ -779,7 +799,12 @@ pub fn get_buffers_size(
 ///
 /// # Algorithm 4
 /// Conversion from BGRA to RGB
-/// 
+///
+/// # Algorithm 5
+/// Conversion from YCbCr 10-bit model to linear RGB model, with 4:4:4 upsampling
+/// If the destination image contains an alpha channel, each component will be set to the
+/// maximum value allowed for the specific image format
+///
 /// [`NotInitialized`]: ./enum.ErrorKind.html#variant.NotInitialized
 /// [`InvalidValue`]: ./enum.ErrorKind.html#variant.InvalidValue
 /// [`InvalidOperation`]: ./enum.ErrorKind.html#variant.InvalidOperation
@@ -789,6 +814,8 @@ pub fn get_buffers_size(
 /// [`1`]: ./fn.convert_image.html#algorithm-1
 /// [`2`]: ./fn.convert_image.html#algorithm-2
 /// [`3`]: ./fn.convert_image.html#algorithm-3
+/// [`4`]: ./fn.convert_image.html#algorithm-4
+/// [`5`]: ./fn.convert_image.html#algorithm-5
 pub fn convert_image(
     width: u32,
     height: u32,

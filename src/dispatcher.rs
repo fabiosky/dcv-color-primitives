@@ -26,9 +26,9 @@ const fn upper_power_of_two(x: u32) -> u32 {
 }
 
 const LO_RGB_PIXEL_FORMAT: u32 = PixelFormat::Argb as u32;
-const HI_RGB_PIXEL_FORMAT: u32 = PixelFormat::Rgb as u32;
+const HI_RGB_PIXEL_FORMAT: u32 = PixelFormat::Rgba30 as u32;
 const LO_YUV_PIXEL_FORMAT: u32 = PixelFormat::I444 as u32;
-const HI_YUV_PIXEL_FORMAT: u32 = PixelFormat::Nv12 as u32;
+const HI_YUV_PIXEL_FORMAT: u32 = PixelFormat::P010 as u32;
 static_assert!(HI_RGB_PIXEL_FORMAT == LO_YUV_PIXEL_FORMAT - 1);
 
 const LO_RGB_COLOR_SPACE: u32 = ColorSpace::Lrgb as u32;

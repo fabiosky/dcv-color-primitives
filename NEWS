@@ -1,3 +1,14 @@
+News in 0.1.18
+--------------
+* Added 10-bit yuv formats:
+  - P010, planar yuv 4:2:0 10-bit
+  - P410, planar yuv 4:4:4 10-bit
+* Added packed 10-bit rgb formats:
+  - BGRA30, packed bgr 10-bit with alpha
+  - RGBA30, packed rgb 10-bit with alpha
+* Added P010 to BGRA, BGRA30, RGBA30 conversion
+* Added P410 to BGRA, BGRA30, RGBA30 conversion
+
 News in 0.1.17
 --------------
 * Fixed 32-bit build

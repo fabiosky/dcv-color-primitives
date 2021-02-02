@@ -30,7 +30,9 @@
  * | I420                 | BGRA                       |
  * | I444                 | BGRA                       |
  * | NV12                 | BGRA                       |
- * | RGB                  | BGRA                       |
+ * | P010                 | BGRA, BGRA30, RGBA30       |
+ * | P410                 | BGRA, BGRA30, RGBA30       |
+ * | RGB                  | BGRA
  *
  * The supported color models are:
  * - YCbCr, ITU-R Recommendation BT.601 (standard video system)
@@ -290,24 +292,55 @@ typedef enum {
 
 /**
  * DcpPixelFormat:
- * @DCP_PIXEL_FORMAT_ARGB: RGB with alpha channel first. 32 bits per pixel
- * @DCP_PIXEL_FORMAT_BGRA: Reverse RGB with alpha channel last. 32 bits per pixel
- * @DCP_PIXEL_FORMAT_BGR: Reverse RGB packed into 24 bits without padding. 24 bits per pixel
- * @DCP_PIXEL_FORMAT_RGBA: RGB with alpha channel last. 32 bits per pixel
- * @DCP_PIXEL_FORMAT_RGB: RGB packed into 24 bits without padding. 24 bits per pixel
- * @DCP_PIXEL_FORMAT_I444: YUV with one luma plane Y then 2 chroma planes U and V.
- *                         Chroma planes are not sub-sampled. 24 bits per pixel
- * @DCP_PIXEL_FORMAT_I422: YUV with one luma plane Y then 2 chroma planes U, V.
+ * @DCP_PIXEL_FORMAT_ARGB: Packed 8-bit RGB with alpha channel first.
+ *                         Each pixel is a four-byte little-endian value.
+ *                         A, R, G and B are found in bits `7:0`, `15:8`, `23:16` and `31:24` respectively.
+ *                         32 bits per pixel
+ * @DCP_PIXEL_FORMAT_BGRA: Packed 8-bit reverse RGB with alpha channel last.
+ *                         Each pixel is a four-byte little-endian value.
+ *                         B, G, R and A are found in bits `7:0`, `15:8`, `23:16` and `31:24` respectively.
+ *                         32 bits per pixel
+ * @DCP_PIXEL_FORMAT_BGR: Packed 8-bit reverse RGB without alpha channel.
+ *                        24 bits per pixel
+ * @DCP_PIXEL_FORMAT_RGBA: Packed 8-bit RGB with alpha channel last.
+ *                         Each pixel is a four-byte little-endian value.
+ *                         R, G, B and A are found in bits `7:0`, `15:8`, `23:16` and `31:24` respectively.
+ *                         32 bits per pixel
+ * @DCP_PIXEL_FORMAT_RGB: Packed 8-bit RGB without alpha channel.
+ *                        24 bits per pixel
+ * @DCP_PIXEL_FORMAT_BGRA30: Packed 10-bit reverse RGB with alpha channel last.
+ *                           Each pixel is a four-byte little-endian value.
+ *                           B, G, R and A are found in bits `9:0`, `19:10`, `29:20` and `31:30` respectively.
+ *                           32 bits per pixel
+ * @DCP_PIXEL_FORMAT_RGBA30: Packed 10-bit RGB with alpha channel last.
+ *                           Each pixel is a four-byte little-endian value.
+ *                           R, G, B and A are found in bits `9:0`, `19:10`, `29:20` and `31:30` respectively.
+ *                           32 bits per pixel
+ * @DCP_PIXEL_FORMAT_I444: Planar 8-bit YUV with one luma plane Y then 2 chroma planes U and V.
+ *                         Chroma planes are not sub-sampled.
+ *                         24 bits per pixel
+ * @DCP_PIXEL_FORMAT_I422: Planar 8-bit YUV with one luma plane Y then 2 chroma planes U, V.
  *                         Chroma planes are sub-sampled in the horizontal dimension, by a factor of 2.
  *                         16 bits per pixel
- * @DCP_PIXEL_FORMAT_I420: YUV with one luma plane Y then U chroma plane and last the V chroma plane.
+ * @DCP_PIXEL_FORMAT_I420: Planar 8-bit YUV with one luma plane Y then U chroma plane and last the V chroma plane.
+ *                         The two chroma planes are sub-sampled in both the horizontal and vertical dimensions by a factor of 2.
+ *                         12 bits per pixel
+ * @DCP_PIXEL_FORMAT_NV12: Planar 8-bit YUV with one luma plane Y then one plane with interleaved U and V values.
+ *                         Chroma planes are subsampled in both the horizontal and vertical dimensions by a factor of 2.
+ *                         Samples in the UV plane are two-byte little-endian values.
+ *                         U and V are found in bits `7:0` and `15:8` respectively.
+ *                         12 bits per pixel
+ * @DCP_PIXEL_FORMAT_P410: Planar 10-bit YUV with one luma plane Y then 2 chroma planes U and V.
+ *                         Chroma planes are not sub-sampled.
+ *                         Each sample is a two-byte little-endian value.
+ *                         S is found in bits `9:0`, with bits `15:10` ignored.
+ *                         48 bits per pixel
+ * @DCP_PIXEL_FORMAT_P010: Planar 10-bit YUV with one luma plane Y then 2 chroma planes U and V.
  *                         The two chroma planes are sub-sampled in both the horizontal and vertical
  *                         dimensions by a factor of 2.
- *                         12 bits per pixel
- * @DCP_PIXEL_FORMAT_NV12: YUV with one luma plane Y then one plane with U and V values interleaved.
- *                         Chroma planes are subsampled in both the horizontal and vertical dimensions
- *                         by a factor of 2.
- *                         12 bits per pixel
+ *                         Each sample is a two-byte little-endian value.
+ *                         S is found in bits `9:0`, with bits `15:10` ignored.
+ *                         24 bits per pixel
  *
  * An enumeration of supported pixel formats.
  */
@@ -317,10 +350,14 @@ typedef enum {
     DCP_PIXEL_FORMAT_BGR,
     DCP_PIXEL_FORMAT_RGBA,
     DCP_PIXEL_FORMAT_RGB,
+    DCP_PIXEL_FORMAT_BGRA30,
+    DCP_PIXEL_FORMAT_RGBA30,
     DCP_PIXEL_FORMAT_I444,
     DCP_PIXEL_FORMAT_I422,
     DCP_PIXEL_FORMAT_I420,
     DCP_PIXEL_FORMAT_NV12,
+    DCP_PIXEL_FORMAT_P410,
+    DCP_PIXEL_FORMAT_P010,
 } DcpPixelFormat;
 
 /**
@@ -359,35 +396,45 @@ typedef enum {
  *
  * Each pixel format has one or more compatible color spaces:
  *
- * pixel_format          | color_space
- * ----------------------|---------------------------------------------
- * DCP_PIXEL_FORMAT_ARGB | DCP_COLOR_SPACE_LRGB
- * DCP_PIXEL_FORMAT_BGRA | DCP_COLOR_SPACE_LRGB
- * DCP_PIXEL_FORMAT_BGR  | DCP_COLOR_SPACE_LRGB
- * DCP_PIXEL_FORMAT_RGBA | DCP_COLOR_SPACE_LRGB
- * DCP_PIXEL_FORMAT_RGB  | DCP_COLOR_SPACE_LRGB
- * DCP_PIXEL_FORMAT_I444 | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
- * DCP_PIXEL_FORMAT_I422 | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
- * DCP_PIXEL_FORMAT_I420 | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
- * DCP_PIXEL_FORMAT_NV12 | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
+ * pixel_format            | color_space
+ * ------------------------|---------------------------------------------
+ * DCP_PIXEL_FORMAT_ARGB   | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_BGRA   | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_BGR    | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_RGBA   | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_RGB    | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_BGRA30 | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_RGBA30 | DCP_COLOR_SPACE_LRGB
+ * DCP_PIXEL_FORMAT_I444   | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
+ * DCP_PIXEL_FORMAT_I422   | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
+ * DCP_PIXEL_FORMAT_I420   | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
+ * DCP_PIXEL_FORMAT_NV12   | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
+ * DCP_PIXEL_FORMAT_P410   | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
+ * DCP_PIXEL_FORMAT_P010   | DCP_COLOR_SPACE_BT601, DCP_COLOR_SPACE_BT709
  *
  * Some pixel formats might impose additional restrictions on the accepted number of
  * planes and the image size:
  *
- * pixel_format          | subsampling | w   | h   | #planes | #1     | #2     | #3
- * ----------------------|:-----------:|:---:|:---:|:-------:|:------:|:------:|:-------:
- * DCP_PIXEL_FORMAT_ARGB | 4:4:4       |     |     | 1       | argb:4 |        |
- * DCP_PIXEL_FORMAT_BGRA | 4:4:4       |     |     | 1       | bgra:4 |        |
- * DCP_PIXEL_FORMAT_BGR  | 4:4:4       |     |     | 1       | bgr:3  |        |
- * DCP_PIXEL_FORMAT_RGBA | 4:4:4       |     |     | 1       | rgba:4 |        |
- * DCP_PIXEL_FORMAT_RGB  | 4:4:4       |     |     | 1       | rgb:3  |        |
- * DCP_PIXEL_FORMAT_I444 | 4:4:4       |     |     | 3       | y:1    | u:1    | v:1
- * DCP_PIXEL_FORMAT_I422 | 4:2:2       |  2  |     | 1, 3    | y:1    | u:1/2  | v:1/2
- * DCP_PIXEL_FORMAT_I420 | 4:2:0       |  2  |  2  | 3       | y:1    | u:1/4  | v:1/4
- * DCP_PIXEL_FORMAT_NV12 | 4:2:0       |  2  |  2  | 1, 2    | y:1    | uv:1/2 |
+ * pixel_format            | w   | h   | subsampling | layout
+ * ------------------------|:---:|:---:|:------------|:--------------
+ * DCP_PIXEL_FORMAT_ARGB   |     |     |             | packed
+ * DCP_PIXEL_FORMAT_BGRA   |     |     |             | packed
+ * DCP_PIXEL_FORMAT_BGR    |     |     |             | packed
+ * DCP_PIXEL_FORMAT_RGBA   |     |     |             | packed
+ * DCP_PIXEL_FORMAT_RGB    |     |     |             | packed
+ * DCP_PIXEL_FORMAT_BGRA30 |     |     |             | packed
+ * DCP_PIXEL_FORMAT_RGBA30 |     |     |             | packed
+ * DCP_PIXEL_FORMAT_I444   |     |     | 4:4:4       | 3 planes
+ * DCP_PIXEL_FORMAT_I422   |  2  |     | 4:2:2       | 1 or 3 planes
+ * DCP_PIXEL_FORMAT_I420   |  2  |  2  | 4:2:0       | 3 planes
+ * DCP_PIXEL_FORMAT_NV12   |  2  |  2  | 4:2:0       | 1 or 2 planes
+ * DCP_PIXEL_FORMAT_P410   |     |     | 4:4:4       | 3 planes
+ * DCP_PIXEL_FORMAT_P010   |  2  |  2  | 4:2:0       | 3 planes
  *
  * The values reported in columns `w` and `h`, when specified, indicate that the described
- * image should have width and height that are multiples of the specified values
+ * image should have width and height that are multiples of the specified values.
+ *
+ * For information about packed formats and per-plane component layout, see #DcpPixelFormat
  */
 typedef struct {
     DcpPixelFormat pixel_format;
@@ -426,7 +473,7 @@ void                dcp_initialize              (void);
  * Returns a description of the algorithms that are best for the running cpu and
  * available instruction sets
  *
- * Returns: a null-terminated string that contains the description, or %NULL if the library was not 
+ * Returns: a null-terminated string that contains the description, or %NULL if the library was not
  *          initialized before. String has to freed using function(dcp_unref_string)
  *
  * # Examples
@@ -633,11 +680,25 @@ DcpResult           dcp_get_buffers_size        (uint32_t              width,
  *
  *   Source image pixel format         | Supported destination image pixel formats
  *   ----------------------------------|------------------------------------------
+ *   DCP_PIXEL_FORMAT_ARGB             | DCP_PIXEL_FORMAT_I420 [1][algo-1]
+ *   DCP_PIXEL_FORMAT_ARGB             | DCP_PIXEL_FORMAT_I444 [1][algo-1]
  *   DCP_PIXEL_FORMAT_ARGB             | DCP_PIXEL_FORMAT_NV12 [1][algo-1]
+ *   DCP_PIXEL_FORMAT_BGR              | DCP_PIXEL_FORMAT_I420 [1][algo-1]
+ *   DCP_PIXEL_FORMAT_BGR              | DCP_PIXEL_FORMAT_I444 [1][algo-1]
  *   DCP_PIXEL_FORMAT_BGR              | DCP_PIXEL_FORMAT_NV12 [1][algo-1]
+ *   DCP_PIXEL_FORMAT_BGRA             | DCP_PIXEL_FORMAT_I420 [1][algo-1]
+ *   DCP_PIXEL_FORMAT_BGRA             | DCP_PIXEL_FORMAT_I444 [1][algo-1]
  *   DCP_PIXEL_FORMAT_BGRA             | DCP_PIXEL_FORMAT_NV12 [1][algo-1]
+ *   DCP_PIXEL_FORMAT_BGRA             | DCP_PIXEL_FORMAT_RGB  [4][algo-4]
  *   DCP_PIXEL_FORMAT_I420             | DCP_PIXEL_FORMAT_BGRA [2][algo-2]
+ *   DCP_PIXEL_FORMAT_I444             | DCP_PIXEL_FORMAT_BGRA [2][algo-2]
  *   DCP_PIXEL_FORMAT_NV12             | DCP_PIXEL_FORMAT_BGRA [2][algo-2]
+ *   DCP_PIXEL_FORMAT_P010             | DCP_PIXEL_FORMAT_BGRA [5][algo-5]
+ *   DCP_PIXEL_FORMAT_P010             | DCP_PIXEL_FORMAT_BGRA30 [5][algo-5]
+ *   DCP_PIXEL_FORMAT_P010             | DCP_PIXEL_FORMAT_RGBA30 [5][algo-5]
+ *   DCP_PIXEL_FORMAT_P410             | DCP_PIXEL_FORMAT_BGRA [5][algo-5]
+ *   DCP_PIXEL_FORMAT_P410             | DCP_PIXEL_FORMAT_BGRA30 [5][algo-5]
+ *   DCP_PIXEL_FORMAT_P410             | DCP_PIXEL_FORMAT_RGBA30 [5][algo-5]
  *   DCP_PIXEL_FORMAT_RGB              | DCP_PIXEL_FORMAT_BGRA [3][algo-3]
  *
  * # Undefined behaviour
@@ -696,6 +757,17 @@ DcpResult           dcp_get_buffers_size        (uint32_t              width,
  * # Algorithm 3 # {#algo-3}
  *
  * Conversion from RGB to BGRA
+ *
+ * # Algorithm 4 # {#algo-4}
+ *
+ * Conversion from BGRA to RGB
+ *
+ * # Algorithm 5 # {#algo-5}
+ *
+ * Conversion from YCbCr 10-bit model to linear RGB model, with 4:4:4 upsampling
+ * If the destination image contains an alpha channel, each component will be set to the
+ * maximum value allowed for the specific image format
+ *
  */
 DcpResult           dcp_convert_image           (uint32_t               width,
                                                  uint32_t               height,
